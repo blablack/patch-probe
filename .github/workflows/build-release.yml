@@ -95,9 +95,6 @@ jobs:
         if: runner.os == 'Windows'
         run: cmake -B nine-strip/build -S nine-strip -G Ninja -DCMAKE_BUILD_TYPE=Release
 
-      - name: Build juceaide
-        run: cmake --build nine-strip/build --target juceaide
-
       - name: Configure patch-probe (Linux/macOS)
         if: runner.os != 'Windows'
         run: |
