@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.22...3.29)
 project(patch-probe
     LANGUAGES C CXX
     VERSION 0.1.0
-    DESCRIPTION "VST3 preset scanner for patch-press"
+    DESCRIPTION "VST3 preset state extractor"
 )
 
 set(CMAKE_CXX_STANDARD 17)
@@ -16,5 +16,5 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
     set(CMAKE_CXX_STANDARD_INCLUDE_DIRECTORIES ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES})
 endif()
 
-include(cmake/UsePrebuiltJUCE.cmake)
+add_subdirectory(lib/JUCE)
 add_subdirectory(src)

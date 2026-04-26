@@ -47,25 +47,23 @@ source:
     Cutoff: 0.55
 ```
 
-## Building
+## Download
 
-Requires [nine-strip](https://github.com/blablack/nine-strip) as a sibling directory (patch-probe reuses its pre-built `juceaide` binary to avoid needing X11/FreeType headers).
+Pre-built binaries for Linux, macOS, and Windows are available on the [Releases](../../releases) page.
+
+## Building from source
+
+Requires a C++17 compiler, CMake 3.22+, and Ninja. On Linux, also install the JUCE system dependencies (ALSA, X11, FreeType — see the CI workflow for the full list).
 
 ```bash
-# Build nine-strip first (only the configure step is needed — juceaide is built then)
-cmake -B ../nine-strip/build -S ../nine-strip -G Ninja -DCMAKE_BUILD_TYPE=Release
-
-# Configure and build patch-probe
-cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++
+git clone --recurse-submodules https://github.com/blablack/patch-probe
+cd patch-probe
+cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 ninja -C build
 
 # Binary lands at:
 build/src/patch-probe_artefacts/Release/patch-probe
 ```
-
-## Download
-
-Pre-built binaries for Linux, macOS, and Windows are available on the [Releases](../../releases) page.
 
 ## Python consumer example
 

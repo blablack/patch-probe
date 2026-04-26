@@ -35,18 +35,10 @@ jobs:
             artifact: patch-probe-Windows.zip
 
     steps:
-      - name: Checkout patch-probe
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: recursive
-          path: patch-probe
-
-      - name: Checkout nine-strip
-        uses: actions/checkout@v4
-        with:
-          repository: blablack/nine-strip
-          submodules: recursive
-          path: nine-strip
 
       - name: Install Ninja
         uses: seanmiddleditch/gha-setup-ninja@v6
@@ -82,47 +74,34 @@ jobs:
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Configure nine-strip (Linux/macOS)
+      - name: Configure (Linux/macOS)
         if: runner.os != 'Windows'
         run: |
-          cmake -B nine-strip/build -S nine-strip \
+          cmake -B build -S . \
             -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER=${{ matrix.cc }} \
             -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
 
-      - name: Configure nine-strip (Windows)
+      - name: Configure (Windows)
         if: runner.os == 'Windows'
-        run: cmake -B nine-strip/build -S nine-strip -G Ninja -DCMAKE_BUILD_TYPE=Release
+        run: cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=Release
 
-      - name: Configure patch-probe (Linux/macOS)
-        if: runner.os != 'Windows'
-        run: |
-          cmake -B patch-probe/build -S patch-probe \
-            -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_C_COMPILER=${{ matrix.cc }} \
-            -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
-
-      - name: Configure patch-probe (Windows)
-        if: runner.os == 'Windows'
-        run: cmake -B patch-probe/build -S patch-probe -G Ninja -DCMAKE_BUILD_TYPE=Release
-
-      - name: Build patch-probe
-        run: ninja -C patch-probe/build
+      - name: Build
+        run: ninja -C build
 
       - name: Package (Linux)
         if: runner.os == 'Linux'
         run: |
           mkdir -p dist
-          cp patch-probe/build/src/patch-probe_artefacts/Release/patch-probe dist/
+          cp build/src/patch-probe_artefacts/Release/patch-probe dist/
           tar -czf ${{ matrix.artifact }} -C dist patch-probe
 
       - name: Package (macOS)
         if: runner.os == 'macOS'
         run: |
           mkdir -p dist
-          cp patch-probe/build/src/patch-probe_artefacts/Release/patch-probe dist/
+          cp build/src/patch-probe_artefacts/Release/patch-probe dist/
           ditto -c -k --sequesterRsrc --keepParent dist/patch-probe ${{ matrix.artifact }}
 
       - name: Package (Windows)
@@ -130,7 +109,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Path dist
-          Copy-Item patch-probe\build\src\patch-probe_artefacts\Release\patch-probe.exe dist\
+          Copy-Item build\src\patch-probe_artefacts\Release\patch-probe.exe dist\
           Compress-Archive -Path dist\patch-probe.exe -DestinationPath ${{ matrix.artifact }}
 
       - name: Upload artifact
