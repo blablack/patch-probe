@@ -7,15 +7,12 @@ patch-probe is a headless C++ CLI tool (JUCE 8) that loads a VST3 plugin, enumer
 ## Build Commands
 
 ```bash
-# Release build (requires nine-strip to be built first — reuses its juceaide binary)
 cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++
 ninja -C build
 
 # Binary lands at:
 build/src/patch-probe_artefacts/Release/patch-probe
 ```
-
-The cmake setup intentionally reuses nine-strip's pre-built `juceaide` helper binary (see `cmake/UsePrebuiltJUCE.cmake`) to avoid requiring X11/FreeType development headers for the build tool itself. The tool itself is fully headless at runtime.
 
 ## Usage
 
@@ -44,7 +41,7 @@ Each output YAML contains a single `source` block:
 | `src/Main.cpp` | CLI entry point, argument parsing |
 | `src/PresetScanner.h/.cpp` | Loads the plugin, scans factory & user presets, captures state |
 | `src/YamlWriter.h/.cpp` | Writes one YAML file per preset containing the plugin state |
-| `cmake/UsePrebuiltJUCE.cmake` | Bootstraps JUCE using nine-strip's pre-built juceaide |
+| `lib/JUCE` | JUCE submodule (builds juceaide automatically during cmake configure) |
 
 ## Code Style
 
