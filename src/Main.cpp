@@ -9,13 +9,10 @@ static void printUsage()
     std::cerr << "Usage: patch-probe <plugin-path> <output-dir> [OPTIONS]\n"
               << "\n"
               << "Options:\n"
-              << "  --factory-only          Skip user presets\n"
-              << "  --user-only             Skip factory presets\n"
-              << "  --profile <name>        Profile: synth (default), drums, pad\n"
-              << "  --format <name>         Output format: deluge (default), wav\n"
-              << "  --output-path <path>    Destination path written into YAML output field\n"
+              << "  --factory-only    Skip user presets\n"
+              << "  --user-only       Skip factory presets\n"
               << "\n"
-              << "Output: one YAML file per preset, compatible with patch-press.\n";
+              << "Output: one YAML file per preset containing the plugin state.\n";
 }
 
 int main(int argc, char* argv[])
@@ -40,9 +37,6 @@ int main(int argc, char* argv[])
 
     bool factoryOnly = false;
     bool userOnly = false;
-    juce::String profile = "synth";
-    juce::String format = "deluge";
-    juce::String outputPath = "PLACEHOLDER";
 
     for (int i = 3; i < argc; ++i)
     {
@@ -51,12 +45,6 @@ int main(int argc, char* argv[])
             factoryOnly = true;
         else if (arg == "--user-only")
             userOnly = true;
-        else if (arg == "--profile" && i + 1 < argc)
-            profile = argv[++i];
-        else if (arg == "--format" && i + 1 < argc)
-            format = argv[++i];
-        else if (arg == "--output-path" && i + 1 < argc)
-            outputPath = argv[++i];
         else
         {
             std::cerr << "Unknown option: " << arg << "\n";
@@ -107,7 +95,7 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    YamlWriter writer(pluginFile, outputDir, profile, format, outputPath);
+    YamlWriter writer(pluginFile, outputDir);
 
     for (const auto& preset : presets)
     {

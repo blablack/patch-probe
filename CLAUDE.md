@@ -2,7 +2,7 @@
 
 ## What This Project Is
 
-patch-probe is a headless C++ CLI tool (JUCE 8) that loads a VST3 plugin, enumerates all its presets (factory + user), and writes one YAML config file per preset. The YAML files are directly consumable by [patch-press](../patch-press) which uses pedalboard to render audio samples.
+patch-probe is a headless C++ CLI tool (JUCE 8) that loads a VST3 plugin, enumerates all its presets (factory + user), and writes one YAML file per preset containing the full plugin state. The problem it solves: pedalboard cannot change presets at runtime, but it can restore a plugin's state from a saved blob. patch-probe extracts that state for every preset up front so pedalboard can load each one directly.
 
 ## Build Commands
 
@@ -23,20 +23,19 @@ The cmake setup intentionally reuses nine-strip's pre-built `juceaide` helper bi
 patch-probe <plugin.vst3> <output-dir> [OPTIONS]
 
 Options:
-  --factory-only          Only scan factory presets (skip user preset dirs)
-  --user-only             Only scan user preset files
-  --profile synth|drums|pad   Profile written into YAML (default: synth)
-  --format deluge|wav         Output format written into YAML (default: deluge)
-  --output-path <path>        Destination path field in YAML output block
+  --factory-only    Only scan factory presets (skip user preset dirs)
+  --user-only       Only scan user preset files
 ```
 
-Each output YAML contains:
-- `source.preset` — preset name
-- `source.program_index` — factory index (for pedalboard program selection)
-- `source.preset_file` — path to .vstpreset file (user presets)
-- `source.raw_state` — base64-encoded `getStateInformation()` bytes (exact state)
-- `source.parameter_state` — per-parameter normalized values (fallback)
-- Default capture/analysis blocks that the user should tune
+Each output YAML contains a single `source` block:
+- `type` — always `vst`
+- `plugin` — path to the `.vst3` file
+- `preset` — preset name
+- `preset_source` — `factory` or `user`
+- `program_index` — factory index (present for factory presets)
+- `preset_file` — path to `.vstpreset` file (present for user presets)
+- `raw_state` — base64-encoded `getStateInformation()` bytes — the primary restore mechanism
+- `parameter_state` — per-parameter normalized values — fallback if raw_state isn't accepted
 
 ## Architecture
 
@@ -44,7 +43,7 @@ Each output YAML contains:
 |---|---|
 | `src/Main.cpp` | CLI entry point, argument parsing |
 | `src/PresetScanner.h/.cpp` | Loads the plugin, scans factory & user presets, captures state |
-| `src/YamlWriter.h/.cpp` | Writes patch-press-compatible YAML for each preset |
+| `src/YamlWriter.h/.cpp` | Writes one YAML file per preset containing the plugin state |
 | `cmake/UsePrebuiltJUCE.cmake` | Bootstraps JUCE using nine-strip's pre-built juceaide |
 
 ## Code Style
@@ -63,10 +62,3 @@ clang-format -i src/*.cpp src/*.h
 - Format registration: `juce::addHeadlessDefaultFormatsToManager(formatManager)`
 - MessageManager init: `juce::MessageManager::getInstance()->setCurrentThreadAsMessageThread()`
 
-## Relationship with patch-press
-
-patch-press's `VSTSourceConfig` was extended to accept the new fields. `VSTAdapter._apply_preset()` now uses them in priority order:
-1. `raw_state` (base64 bytes) — most reliable, exact state restoration
-2. `program_index` — factory preset by index
-3. `preset` name matching via `parameters["program"]`
-4. `parameter_state` dict — individual parameter values (fallback)
