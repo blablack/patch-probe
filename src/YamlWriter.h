@@ -6,11 +6,7 @@
 class YamlWriter
 {
   public:
-    YamlWriter(const juce::File& pluginFile,
-               const juce::File& outputDir,
-               const juce::String& profile,
-               const juce::String& format,
-               const juce::String& outputPath);
+    YamlWriter(const juce::File& pluginFile, const juce::File& outputDir);
 
     // Returns the written file.
     juce::File write(const PresetInfo& preset);
@@ -21,8 +17,4 @@ class YamlWriter
 
     juce::File pluginFile_;
     juce::File outputDir_;
-    juce::String profile_;
-    juce::String format_;
-    juce::String outputPath_;
-    juce::String pluginStem_;
 };

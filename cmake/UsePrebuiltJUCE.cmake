@@ -4,8 +4,13 @@
 set(NINE_STRIP_BUILD "${CMAKE_CURRENT_SOURCE_DIR}/../nine-strip/build/lib/JUCE")
 set(JUCE_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/lib/JUCE")
 
-set(JUCEAIDE_BINARY
-    "${NINE_STRIP_BUILD}/tools/extras/Build/juceaide/juceaide_artefacts/Custom/juceaide")
+if(WIN32)
+    set(JUCEAIDE_BINARY
+        "${NINE_STRIP_BUILD}/tools/extras/Build/juceaide/juceaide_artefacts/Custom/juceaide.exe")
+else()
+    set(JUCEAIDE_BINARY
+        "${NINE_STRIP_BUILD}/tools/extras/Build/juceaide/juceaide_artefacts/Custom/juceaide")
+endif()
 
 if(NOT EXISTS "${JUCEAIDE_BINARY}")
     message(FATAL_ERROR

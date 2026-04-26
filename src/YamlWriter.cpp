@@ -1,16 +1,7 @@
 #include "YamlWriter.h"
 
-YamlWriter::YamlWriter(const juce::File& pluginFile,
-                       const juce::File& outputDir,
-                       const juce::String& profile,
-                       const juce::String& format,
-                       const juce::String& outputPath)
-    : pluginFile_(pluginFile),
-      outputDir_(outputDir),
-      profile_(profile),
-      format_(format),
-      outputPath_(outputPath),
-      pluginStem_(sanitize(pluginFile.getFileNameWithoutExtension()))
+YamlWriter::YamlWriter(const juce::File& pluginFile, const juce::File& outputDir)
+    : pluginFile_(pluginFile), outputDir_(outputDir)
 {
 }
 
@@ -42,28 +33,6 @@ juce::File YamlWriter::write(const PresetInfo& preset)
         for (const auto& [key, value] : preset.parameters)
             content << "    " << juce::String::fromUTF8(key.c_str()) << ": " << value << "\n";
     }
-
-    content << "\n";
-    content << "profile: " << profile_ << "\n";
-    content << "\n";
-
-    if (profile_ != "drums")
-    {
-        content << "capture:\n";
-        content << "  note_step: 3\n";
-        content << "  duration_s: 4.0\n";
-        content << "  release_tail_s: 2.0\n";
-        content << "\n";
-    }
-
-    content << "analysis:\n";
-    content << "  loop: false\n";
-    content << "\n";
-
-    content << "output:\n";
-    content << "  format: " << format_ << "\n";
-    content << "  path: " << outputPath_ << "\n";
-    content << "  name: " << pluginStem_ << "_" << safeName << "\n";
 
     // Avoid overwriting an existing file from a different preset with the same sanitized name
     juce::File outFile = outputDir_.getChildFile(safeName + ".yaml");

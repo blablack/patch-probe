@@ -1,0 +1,168 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            os: ubuntu-22.04
+            artifact: patch-probe-Linux.tar.gz
+            cc: gcc
+            cxx: g++
+
+          - name: macOS
+            os: macos-latest
+            artifact: patch-probe-macOS.zip
+            cc: clang
+            cxx: clang++
+
+          - name: Windows
+            os: windows-latest
+            artifact: patch-probe-Windows.zip
+
+    steps:
+      - name: Checkout patch-probe
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          path: patch-probe
+
+      - name: Checkout nine-strip
+        uses: actions/checkout@v4
+        with:
+          repository: blablack/nine-strip
+          submodules: recursive
+          path: nine-strip
+
+      - name: Install Ninja
+        uses: seanmiddleditch/gha-setup-ninja@v6
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libasound2-dev \
+            libjack-jackd2-dev \
+            ladspa-sdk \
+            libcurl4-openssl-dev \
+            libfreetype6-dev \
+            libx11-dev \
+            libxcomposite-dev \
+            libxcursor-dev \
+            libxext-dev \
+            libxinerama-dev \
+            libxrandr-dev \
+            libxrender-dev \
+            libwebkit2gtk-4.1-dev \
+            libglu1-mesa-dev \
+            mesa-common-dev \
+            gcc \
+            g++
+
+      - name: Setup MSVC (Windows)
+        if: runner.os == 'Windows'
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup MSVC environment (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Configure nine-strip (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          cmake -B nine-strip/build -S nine-strip \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=${{ matrix.cc }} \
+            -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
+
+      - name: Configure nine-strip (Windows)
+        if: runner.os == 'Windows'
+        run: cmake -B nine-strip/build -S nine-strip -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build juceaide
+        run: cmake --build nine-strip/build --target juceaide
+
+      - name: Configure patch-probe (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          cmake -B patch-probe/build -S patch-probe \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=${{ matrix.cc }} \
+            -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
+
+      - name: Configure patch-probe (Windows)
+        if: runner.os == 'Windows'
+        run: cmake -B patch-probe/build -S patch-probe -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build patch-probe
+        run: ninja -C patch-probe/build
+
+      - name: Package (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p dist
+          cp patch-probe/build/src/patch-probe_artefacts/Release/patch-probe dist/
+          tar -czf ${{ matrix.artifact }} -C dist patch-probe
+
+      - name: Package (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p dist
+          cp patch-probe/build/src/patch-probe_artefacts/Release/patch-probe dist/
+          ditto -c -k --sequesterRsrc --keepParent dist/patch-probe ${{ matrix.artifact }}
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path dist
+          Copy-Item patch-probe\build\src\patch-probe_artefacts\Release\patch-probe.exe dist\
+          Compress-Archive -Path dist\patch-probe.exe -DestinationPath ${{ matrix.artifact }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: ${{ matrix.artifact }}
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            Linux/patch-probe-Linux.tar.gz
+            macOS/patch-probe-macOS.zip
+            Windows/patch-probe-Windows.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
