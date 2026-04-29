@@ -15,11 +15,8 @@ static void printUsage()
               << "Output: one YAML file per preset containing the plugin state.\n";
 }
 
-int main(int argc, char* argv[])
+static int run(int argc, char* argv[])
 {
-    // Set up MessageManager for this (single) thread without GUI/display
-    juce::MessageManager::getInstance()->setCurrentThreadAsMessageThread();
-
     if (argc < 3)
     {
         printUsage();
@@ -108,4 +105,18 @@ int main(int argc, char* argv[])
               << outputDir.getFullPathName() << "\n";
 
     return 0;
+}
+
+int main(int argc, char* argv[])
+{
+    juce::MessageManager::getInstance()->setCurrentThreadAsMessageThread();
+
+    const int exitCode = run(argc, argv);
+
+    // All JUCE objects created in run() are destroyed before we reach here,
+    // so it's safe to tear down the MessageManager.
+    juce::DeletedAtShutdown::deleteAll();
+    juce::MessageManager::deleteInstance();
+
+    return exitCode;
 }

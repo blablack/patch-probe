@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.22...3.29)
 
 project(patch-probe
     LANGUAGES C CXX
-    VERSION 0.1.0
+    VERSION 0.1.2
     DESCRIPTION "VST3 preset state extractor"
 )
 
