@@ -1,4 +1,4 @@
-juce_add_console_app(patch-probe
+juce_add_gui_app(patch-probe
     PRODUCT_NAME "patch-probe"
 )
 
@@ -17,12 +17,14 @@ target_compile_definitions(patch-probe
 
 target_sources(patch-probe PRIVATE
     Main.cpp
+    MainComponent.cpp
     PresetScanner.cpp
     YamlWriter.cpp
 )
 
 target_link_libraries(patch-probe PRIVATE
-    juce::juce_audio_processors_headless
+    juce::juce_audio_processors
+    juce::juce_gui_basics
     juce::juce_core
     juce::juce_data_structures
 )

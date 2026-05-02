@@ -2,7 +2,9 @@
 
 ## What This Project Is
 
-patch-probe is a headless C++ CLI tool (JUCE 8) that loads a VST3 plugin, enumerates all its presets (factory + user), and writes one YAML file per preset containing the full plugin state. The problem it solves: pedalboard cannot change presets at runtime, but it can restore a plugin's state from a saved blob. patch-probe extracts that state for every preset up front so pedalboard can load each one directly.
+patch-probe is a GUI desktop app (JUCE 8) that loads a VST3 plugin in an interactive window. The user browses presets using the plugin's own UI, then clicks **Save** to write a YAML snapshot of the current state. The problem it solves: pedalboard cannot change presets at runtime, but it can restore a plugin's state from a saved blob. patch-probe lets the user capture that state for each preset they care about.
+
+Why interactive rather than headless batch scanning: VST3 has no universal preset enumeration API that works across all plugins. `setCurrentProgram()` only covers factory programs; `.vstpreset` loading requires the plugin to use standard VST3 IComponent state format, which many plugins (e.g. Odin2 with `.odin` blobs) do not.
 
 ## Build Commands
 
@@ -16,21 +18,12 @@ build/src/patch-probe_artefacts/Release/patch-probe
 
 ## Usage
 
-```bash
-patch-probe <plugin.vst3> <output-dir> [OPTIONS]
-
-Options:
-  --factory-only    Only scan factory presets (skip user preset dirs)
-  --user-only       Only scan user preset files
-```
+Launch the app, click **Load Plugin…** to open a `.vst3` file, interact with the plugin UI to select a preset, then click **Save**. Repeat for each preset. Output files land in `~/patch-probe/` by default (configurable via the Output button).
 
 Each output YAML contains a single `source` block:
 - `type` — always `vst`
 - `plugin` — path to the `.vst3` file
-- `preset` — preset name
-- `preset_source` — `factory` or `user`
-- `program_index` — factory index (present for factory presets)
-- `preset_file` — path to `.vstpreset` file (present for user presets)
+- `preset` — preset name (auto-detected or user-entered)
 - `raw_state` — base64-encoded `getStateInformation()` bytes — the primary restore mechanism
 - `parameter_state` — per-parameter normalized values — fallback if raw_state isn't accepted
 
@@ -38,9 +31,10 @@ Each output YAML contains a single `source` block:
 
 | File | Role |
 |---|---|
-| `src/Main.cpp` | CLI entry point, argument parsing |
-| `src/PresetScanner.h/.cpp` | Loads the plugin, scans factory & user presets, captures state |
-| `src/YamlWriter.h/.cpp` | Writes one YAML file per preset containing the plugin state |
+| `src/Main.cpp` | JUCE app entry point; `MainWindow` subclasses `DocumentWindow` |
+| `src/MainComponent.h/.cpp` | Main UI: toolbar (Load), plugin editor area, bottom save bar |
+| `src/PresetScanner.h/.cpp` | Loads the plugin, exposes editor, captures state on demand |
+| `src/YamlWriter.h/.cpp` | Writes one YAML file per captured preset |
 | `lib/JUCE` | JUCE submodule (builds juceaide automatically during cmake configure) |
 
 ## Code Style
@@ -51,11 +45,18 @@ Matches nine-strip: Google style, 4-space indent, 128-column limit, Allman brace
 clang-format -i src/*.cpp src/*.h
 ```
 
+## Design Constraints
+
+**Plugin-agnostic**: state capture uses only `getStateInformation()` + `getParameters()`. Never hardcode plugin names, vendor names, or preset formats.
+
 ## JUCE Notes
 
-- Uses `juce_audio_processors_headless` (no X11/display dependency at runtime or build)
-- Factory preset scanning: `getNumPrograms()` / `setCurrentProgram(i)` / `getStateInformation()`
-- User preset loading: `ExtensionsVisitor::VST3Client::setPreset()` — parses `.vstpreset` files
-- Format registration: `juce::addHeadlessDefaultFormatsToManager(formatManager)`
-- MessageManager init: `juce::MessageManager::getInstance()->setCurrentThreadAsMessageThread()`
-
+- Uses `juce_audio_processors` + `juce_gui_basics` (GUI app, requires display)
+- Format registration: `juce::addDefaultFormatsToManager(formatManager)`
+- Plugin editor hosting: `plugin->createEditorIfNeeded()`, `addAndMakeVisible(*editor_)`
+- File chooser: async `launchAsync()` API; keep `std::unique_ptr<juce::FileChooser>` as member
+- `DocumentWindow`: must subclass and override `closeButtonPressed()` — no callback member in JUCE 8
+- Preset name detection fallback chain:
+  1. `getProgramName(getCurrentProgram())` — skip generics ("Default", "Init", "Untitled", "Program N")
+  2. Parse JUCE XML state blob: decode `IComponent` base64 → inner XML → check `presetName`/`name`/`preset_name`/`currentPreset` attributes
+  3. Auto-counter fallback: `Preset_NNN`

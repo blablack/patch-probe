@@ -11,36 +11,17 @@ juce::File YamlWriter::write(const PresetInfo& preset)
     const juce::String presetName = juce::String::fromUTF8(preset.name.c_str());
 
     juce::String content;
-
     content << "source:\n";
     content << "  type: vst\n";
     content << "  plugin: " << pluginFile_.getFullPathName() << "\n";
     content << "  preset: " << yamlQuote(presetName) << "\n";
-    content << "  preset_source: " << juce::String::fromUTF8(preset.source.c_str()) << "\n";
-
-    if (preset.programIndex >= 0)
-        content << "  program_index: " << preset.programIndex << "\n";
-
-    if (!preset.presetFile.empty())
-        content << "  preset_file: " << juce::String::fromUTF8(preset.presetFile.c_str()) << "\n";
 
     if (!preset.rawStateB64.empty())
         content << "  raw_state: " << yamlQuote(juce::String::fromUTF8(preset.rawStateB64.c_str())) << "\n";
 
-    if (!preset.parameters.empty())
-    {
-        content << "  parameter_state:\n";
-        for (const auto& [key, value] : preset.parameters)
-            content << "    " << juce::String::fromUTF8(key.c_str()) << ": " << value << "\n";
-    }
-
-    // Avoid overwriting an existing file from a different preset with the same sanitized name
     juce::File outFile = outputDir_.getChildFile(safeName + ".yaml");
-    if (outFile.exists())
-    {
-        for (int idx = 2; outFile.exists(); ++idx)
-            outFile = outputDir_.getChildFile(safeName + "_" + juce::String(idx) + ".yaml");
-    }
+    for (int idx = 2; outFile.exists(); ++idx)
+        outFile = outputDir_.getChildFile(safeName + "_" + juce::String(idx) + ".yaml");
 
     outFile.replaceWithText(content, false, false);
     return outFile;

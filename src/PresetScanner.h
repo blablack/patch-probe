@@ -1,41 +1,34 @@
 #pragma once
 
 #include <JuceHeader.h>
-#include <map>
+
 #include <string>
-#include <vector>
 
 struct PresetInfo
 {
     std::string name;
-    std::string source;      // "factory" or "user"
-    int programIndex;        // factory index, -1 for user presets
-    std::string presetFile;  // path to .vstpreset (user presets only)
-    std::string rawStateB64; // base64-encoded getStateInformation() output
-    std::map<std::string, float> parameters; // paramID -> normalized 0..1
+    std::string rawStateB64;
 };
 
 class PresetScanner
 {
-  public:
+   public:
     explicit PresetScanner(const juce::File& pluginFile);
+    ~PresetScanner();
 
     bool loadPlugin();
-
-    std::vector<PresetInfo> scanFactory();
-    std::vector<PresetInfo> scanUser();
 
     juce::String getPluginName() const;
     juce::String getManufacturerName() const;
 
-  private:
-    PresetInfo captureState(const std::string& name,
-                            const std::string& source,
-                            int programIndex,
-                            const std::string& presetFile);
+    // Best-effort: tries getProgramName → state blob XML → "" (caller supplies fallback).
+    juce::String tryGetPresetName() const;
 
-    bool applyVst3PresetFile(const juce::File& presetFile);
+    PresetInfo captureState(const std::string& name) const;
 
+    juce::AudioPluginInstance* getPlugin() const { return plugin_.get(); }
+
+   private:
     juce::File pluginFile_;
     juce::AudioPluginFormatManager formatManager_;
     juce::PluginDescription description_;

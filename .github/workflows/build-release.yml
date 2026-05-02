@@ -131,9 +131,20 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
 
+      - name: Extract release notes
+        run: |
+          VERSION=${GITHUB_REF_NAME}
+          ESCAPED_VERSION=$(echo "$VERSION" | sed 's/\./\\./g')
+          awk "
+            /^## \[${ESCAPED_VERSION}\]/ { found=1; next }
+            found && /^## \[/            { exit }
+            found                        { print }
+          " CHANGELOG.md > RELEASE_NOTES.md
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
+          body_path: RELEASE_NOTES.md
           files: |
             Linux/patch-probe-Linux.tar.gz
             macOS/patch-probe-macOS.zip

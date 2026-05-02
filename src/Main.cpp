@@ -1,122 +1,56 @@
 #include <JuceHeader.h>
-#include <iostream>
 
-#include "PresetScanner.h"
-#include "YamlWriter.h"
+#include "MainComponent.h"
 
-static void printUsage()
+class MainWindow : public juce::DocumentWindow
 {
-    std::cerr << "Usage: patch-probe <plugin-path> <output-dir> [OPTIONS]\n"
-              << "\n"
-              << "Options:\n"
-              << "  --factory-only    Skip user presets\n"
-              << "  --user-only       Skip factory presets\n"
-              << "\n"
-              << "Output: one YAML file per preset containing the plugin state.\n";
-}
-
-static int run(int argc, char* argv[])
-{
-    if (argc < 3)
+   public:
+    MainWindow()
+        : DocumentWindow("patch-probe",
+                         juce::Desktop::getInstance().getDefaultLookAndFeel().findColour(
+                             juce::ResizableWindow::backgroundColourId),
+                         juce::DocumentWindow::allButtons)
     {
-        printUsage();
-        return 1;
+        setUsingNativeTitleBar(true);
+        setContentOwned(new MainComponent(), true);
+        setResizable(true, true);
+        centreWithSize(800, 600);
+        setVisible(true);
     }
 
-    const juce::File pluginFile(juce::String::fromUTF8(argv[1]));
-    const juce::File outputDir(juce::String::fromUTF8(argv[2]));
+    void closeButtonPressed() override { juce::JUCEApplication::getInstance()->systemRequestedQuit(); }
 
-    if (!pluginFile.exists())
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainWindow)
+};
+
+class PatchProbeApp : public juce::JUCEApplication
+{
+   public:
+    const juce::String getApplicationName() override { return "patch-probe"; }
+    const juce::String getApplicationVersion() override { return "1.0.0"; }
+    bool moreThanOneInstanceAllowed() override { return false; }
+
+    void initialise(const juce::String& commandLine) override
     {
-        std::cerr << "Plugin not found: " << argv[1] << "\n";
-        return 1;
-    }
+        mainWindow = std::make_unique<MainWindow>();
 
-    bool factoryOnly = false;
-    bool userOnly = false;
+        const juce::StringArray args = juce::StringArray::fromTokens(commandLine, true);
+        const juce::File plugin = args.size() >= 1 ? juce::File(args[0]) : juce::File{};
+        const juce::File output = args.size() >= 2 ? juce::File(args[1]) : juce::File{};
 
-    for (int i = 3; i < argc; ++i)
-    {
-        juce::String arg(argv[i]);
-        if (arg == "--factory-only")
-            factoryOnly = true;
-        else if (arg == "--user-only")
-            userOnly = true;
-        else
+        if (plugin != juce::File{} || output != juce::File{})
         {
-            std::cerr << "Unknown option: " << arg << "\n";
-            printUsage();
-            return 1;
+            auto* mc = dynamic_cast<MainComponent*>(mainWindow->getContentComponent());
+            if (mc) mc->applyArgs(plugin, output);
         }
     }
 
-    if (factoryOnly && userOnly)
-    {
-        std::cerr << "--factory-only and --user-only are mutually exclusive\n";
-        return 1;
-    }
+    void shutdown() override { mainWindow.reset(); }
 
-    outputDir.createDirectory();
+    void systemRequestedQuit() override { quit(); }
 
-    PresetScanner scanner(pluginFile);
+   private:
+    std::unique_ptr<MainWindow> mainWindow;
+};
 
-    std::cout << "Loading: " << pluginFile.getFullPathName() << "\n";
-
-    if (!scanner.loadPlugin())
-        return 1;
-
-    std::cout << "Plugin : " << scanner.getPluginName()
-              << " by " << scanner.getManufacturerName() << "\n\n";
-
-    std::vector<PresetInfo> presets;
-
-    if (!userOnly)
-    {
-        auto factory = scanner.scanFactory();
-        std::cout << "Factory presets: " << factory.size() << "\n";
-        presets.insert(presets.end(), factory.begin(), factory.end());
-    }
-
-    if (!factoryOnly)
-    {
-        auto user = scanner.scanUser();
-        std::cout << "User presets   : " << user.size() << "\n";
-        presets.insert(presets.end(), user.begin(), user.end());
-    }
-
-    std::cout << "Total          : " << presets.size() << "\n\n";
-
-    if (presets.empty())
-    {
-        std::cout << "No presets found — nothing written.\n";
-        return 0;
-    }
-
-    YamlWriter writer(pluginFile, outputDir);
-
-    for (const auto& preset : presets)
-    {
-        const juce::File out = writer.write(preset);
-        std::cout << "[" << (preset.source == "factory" ? "F" : "U") << "] "
-                  << preset.name << " -> " << out.getFileName() << "\n";
-    }
-
-    std::cout << "\nWrote " << presets.size() << " configs to: "
-              << outputDir.getFullPathName() << "\n";
-
-    return 0;
-}
-
-int main(int argc, char* argv[])
-{
-    juce::MessageManager::getInstance()->setCurrentThreadAsMessageThread();
-
-    const int exitCode = run(argc, argv);
-
-    // All JUCE objects created in run() are destroyed before we reach here,
-    // so it's safe to tear down the MessageManager.
-    juce::DeletedAtShutdown::deleteAll();
-    juce::MessageManager::deleteInstance();
-
-    return exitCode;
-}
+START_JUCE_APPLICATION(PatchProbeApp)
