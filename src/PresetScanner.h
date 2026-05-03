@@ -3,11 +3,14 @@
 #include <JuceHeader.h>
 
 #include <string>
+#include <utility>
+#include <vector>
 
 struct PresetInfo
 {
     std::string name;
     std::string rawStateB64;
+    std::vector<std::pair<std::string, float>> parameterState;
 };
 
 class PresetScanner

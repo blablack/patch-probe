@@ -7,17 +7,25 @@ YamlWriter::YamlWriter(const juce::File& pluginFile, const juce::File& outputDir
 
 juce::File YamlWriter::write(const PresetInfo& preset)
 {
-    const juce::String safeName = sanitize(juce::String::fromUTF8(preset.name.c_str()));
+    const juce::String prefix = juce::String(counter_++).paddedLeft('0', 3) + "_";
+    const juce::String safeName = prefix + sanitize(juce::String::fromUTF8(preset.name.c_str()));
     const juce::String presetName = juce::String::fromUTF8(preset.name.c_str());
 
     juce::String content;
     content << "source:\n";
     content << "  type: vst\n";
-    content << "  plugin: " << pluginFile_.getFullPathName() << "\n";
+    content << "  plugin: " << yamlQuote(pluginFile_.getFullPathName()) << "\n";
     content << "  preset: " << yamlQuote(presetName) << "\n";
 
     if (!preset.rawStateB64.empty())
         content << "  raw_state: " << yamlQuote(juce::String::fromUTF8(preset.rawStateB64.c_str())) << "\n";
+
+    if (!preset.parameterState.empty())
+    {
+        content << "  parameter_state:\n";
+        for (const auto& [pName, pValue] : preset.parameterState)
+            content << "    " << yamlQuote(juce::String::fromUTF8(pName.c_str())) << ": " << juce::String(pValue, 6) << "\n";
+    }
 
     juce::File outFile = outputDir_.getChildFile(safeName + ".yaml");
     for (int idx = 2; outFile.exists(); ++idx)

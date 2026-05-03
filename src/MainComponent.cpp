@@ -1,6 +1,5 @@
 #include "MainComponent.h"
 
-
 MainComponent::MainComponent()
 {
     outputDir_ = juce::File::getSpecialLocation(juce::File::userHomeDirectory).getChildFile("patch-probe");
@@ -24,30 +23,34 @@ MainComponent::MainComponent()
     savedLabel_.setJustificationType(juce::Justification::centredLeft);
     savedLabel_.setText("0 saved", juce::dontSendNotification);
 
+    addAndMakeVisible(autoSaveToggle_);
+    autoSaveToggle_.setToggleState(true, juce::dontSendNotification);
+
     addAndMakeVisible(outputButton_);
     outputButton_.setButtonText("Output: " + outputDir_.getFullPathName());
     outputButton_.onClick = [this]
     {
         fileChooser_ = std::make_unique<juce::FileChooser>("Select output directory", outputDir_);
-        fileChooser_->launchAsync(
-            juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories,
-            [this](const juce::FileChooser& fc)
-            {
-                const juce::File result = fc.getResult();
-                if (result == juce::File{}) return;
-                outputDir_ = result;
-                outputButton_.setButtonText("Output: " + outputDir_.getFullPathName());
-                if (writer_) writer_ = std::make_unique<YamlWriter>(pluginFile_, outputDir_);
-            });
+        fileChooser_->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories,
+                                  [this](const juce::FileChooser& fc)
+                                  {
+                                      const juce::File result = fc.getResult();
+                                      if (result == juce::File{}) return;
+                                      outputDir_ = result;
+                                      outputButton_.setButtonText("Output: " + outputDir_.getFullPathName());
+                                      if (writer_)
+                                      {
+                                          writer_ = std::make_unique<YamlWriter>(pluginFile_, outputDir_);
+                                          savedCount_ = 0;
+                                          savedLabel_.setText("0 saved", juce::dontSendNotification);
+                                      }
+                                  });
     };
 
     setSize(800, 600);
 }
 
-MainComponent::~MainComponent()
-{
-    hidePluginEditor();
-}
+MainComponent::~MainComponent() { hidePluginEditor(); }
 
 void MainComponent::resized()
 {
@@ -70,12 +73,13 @@ void MainComponent::resized()
     bottom.removeFromLeft(kPad);
     savedLabel_.setBounds(bottom.removeFromLeft(80));
     bottom.removeFromLeft(kPad);
+    autoSaveToggle_.setBounds(bottom.removeFromLeft(90));
+    bottom.removeFromLeft(kPad);
     outputButton_.setBounds(bottom);
 
     // Plugin editor fills the rest
     area.removeFromTop(kPad);
-    if (editor_)
-        editor_->setBounds(area);
+    if (editor_) editor_->setBounds(area);
 }
 
 void MainComponent::paint(juce::Graphics& g)
@@ -97,21 +101,19 @@ void MainComponent::applyArgs(const juce::File& pluginFile, const juce::File& ou
         outputDir_ = outputDir;
         outputButton_.setButtonText("Output: " + outputDir_.getFullPathName());
     }
-    if (pluginFile != juce::File{})
-        loadPluginFile(pluginFile);
+    if (pluginFile != juce::File{}) loadPluginFile(pluginFile);
 }
 
 void MainComponent::loadPlugin()
 {
     fileChooser_ = std::make_unique<juce::FileChooser>("Select VST3 plugin", juce::File{}, "*.vst3");
-    fileChooser_->launchAsync(
-        juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-        [this](const juce::FileChooser& fc)
-        {
-            const juce::File result = fc.getResult();
-            if (result == juce::File{}) return;
-            loadPluginFile(result);
-        });
+    fileChooser_->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                              [this](const juce::FileChooser& fc)
+                              {
+                                  const juce::File result = fc.getResult();
+                                  if (result == juce::File{}) return;
+                                  loadPluginFile(result);
+                              });
 }
 
 void MainComponent::loadPluginFile(const juce::File& file)
@@ -160,6 +162,24 @@ void MainComponent::showPluginEditor()
     if (!editor_) return;
 
     addAndMakeVisible(*editor_);
+
+    const int edW = editor_->getWidth();
+    const int edH = editor_->getHeight();
+    if (edW > 0 && edH > 0)
+    {
+        // Reverse of resized(): editor fills area after removing toolbar, bottom bar and padding.
+        // Total content = editor + 2*kPad (sides) + kToolbarH + kPad + kBottomH + kPad (top/bottom chrome).
+        constexpr int kMinWidth = 600;
+        const int w = std::max(edW + 2 * kPad, kMinWidth);
+        const int h = edH + 2 * kPad + kToolbarH + kTitleBarH + kPad + kBottomH + kPad;
+        if (auto* window = findParentComponentOfClass<juce::DocumentWindow>())
+        {
+            window->centreWithSize(w, h);
+            window->setResizeLimits(w, h, w, h);
+            window->setResizable(false, false);
+        }
+    }
+
     resized();
 }
 
@@ -183,8 +203,7 @@ void MainComponent::updateNameField()
     }
     else
     {
-        nameField_.setText("Preset_" + juce::String(savedCount_ + 1).paddedLeft('0', 3),
-                           juce::dontSendNotification);
+        nameField_.setText("Preset_" + juce::String(savedCount_ + 1).paddedLeft('0', 3), juce::dontSendNotification);
     }
 }
 
@@ -209,13 +228,14 @@ void MainComponent::timerCallback()
         // Debouncing — wait for the state to stop changing
         if (currentState == pendingState_)
         {
-            if (++stableTickCount_ >= 3) // 300 ms of stability
+            if (++stableTickCount_ >= 3)  // 300 ms of stability
             {
                 lastSavedState_ = pendingState_;
                 pendingState_.reset();
                 stableTickCount_ = 0;
                 updateNameField();
-                savePreset();
+                if (autoSaveToggle_.getToggleState())
+                    savePreset();
             }
         }
         else

@@ -46,12 +46,14 @@ class MainComponent : public juce::Component, private juce::Timer
     juce::TextEditor nameField_;
     juce::TextButton saveButton_{"Save"};
     juce::Label savedLabel_;
+    juce::ToggleButton autoSaveToggle_{"Auto-save"};
     juce::TextButton outputButton_{"Output: (none)"};
     std::unique_ptr<juce::FileChooser> fileChooser_;
 
     static constexpr int kToolbarH = 36;
     static constexpr int kBottomH = 40;
     static constexpr int kPad = 6;
+    static constexpr int kTitleBarH = 42;  // approximate native title bar height
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainComponent)
 };

@@ -1,5 +1,7 @@
 #include "PresetScanner.h"
 
+#include <iostream>
+
 
 PresetScanner::PresetScanner(const juce::File& pluginFile) : pluginFile_(pluginFile)
 {
@@ -64,6 +66,24 @@ juce::String PresetScanner::tryGetPresetName() const
 
     if (const auto xml = juce::AudioProcessor::getXmlFromBinary(state.getData(), (int)state.getSize()))
     {
+        static constexpr const char* kNameAttrs[] = {"patch_name", "presetName", "name", "preset_name", "currentPreset"};
+
+        // Check root element attributes first
+        for (const char* attr : kNameAttrs)
+        {
+            const juce::String val = xml->getStringAttribute(attr);
+            if (val.isNotEmpty()) return val;
+        }
+
+        for (auto* child = xml->getFirstChildElement(); child != nullptr; child = child->getNextElement())
+        {
+            for (const char* attr : kNameAttrs)
+            {
+                const juce::String val = child->getStringAttribute(attr);
+                if (val.isNotEmpty()) return val;
+            }
+        }
+
         if (const auto* comp = xml->getChildByName("IComponent"))
         {
             juce::MemoryBlock inner;
@@ -72,13 +92,40 @@ juce::String PresetScanner::tryGetPresetName() const
             if (const auto inner_xml =
                     juce::AudioProcessor::getXmlFromBinary(inner.getData(), (int)inner.getSize()))
             {
-                for (const char* attr : {"presetName", "name", "preset_name", "currentPreset"})
+                for (const char* attr : kNameAttrs)
                 {
                     const juce::String val = inner_xml->getStringAttribute(attr);
                     if (val.isNotEmpty()) return val;
                 }
+
+                for (auto* child = inner_xml->getFirstChildElement(); child != nullptr; child = child->getNextElement())
+                {
+                    for (const char* attr : kNameAttrs)
+                    {
+                        const juce::String val = child->getStringAttribute(attr);
+                        if (val.isNotEmpty()) return val;
+                    }
+                }
+
+                std::cout << "[patch-probe] tryGetPresetName: no name found.\n"
+                          << "  inner xml:\n" << inner_xml->toString().toStdString() << "\n";
+            }
+            else
+            {
+                std::cout << "[patch-probe] tryGetPresetName: IComponent decoded but getXmlFromBinary failed "
+                          << "(non-XML inner state, " << inner.getSize() << " bytes).\n"
+                          << "  outer xml:\n" << xml->toString().toStdString() << "\n";
             }
         }
+        else
+        {
+            std::cout << "[patch-probe] tryGetPresetName: no IComponent found.\n"
+                      << "  outer xml:\n" << xml->toString().toStdString() << "\n";
+        }
+    }
+    else
+    {
+        std::cout << "[patch-probe] tryGetPresetName: getXmlFromBinary failed on outer state.\n";
     }
 
     return {};
@@ -92,6 +139,12 @@ PresetInfo PresetScanner::captureState(const std::string& name) const
     juce::MemoryBlock state;
     plugin_->getStateInformation(state);
     info.rawStateB64 = juce::Base64::toBase64(state.getData(), state.getSize()).toStdString();
+
+    for (auto* param : plugin_->getParameters())
+    {
+        if (param)
+            info.parameterState.emplace_back(param->getName(128).toStdString(), param->getValue());
+    }
 
     return info;
 }

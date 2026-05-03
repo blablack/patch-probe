@@ -17,4 +17,5 @@ class YamlWriter
 
     juce::File pluginFile_;
     juce::File outputDir_;
+    int counter_ = 1;
 };

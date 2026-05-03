@@ -13,7 +13,8 @@ class MainWindow : public juce::DocumentWindow
     {
         setUsingNativeTitleBar(true);
         setContentOwned(new MainComponent(), true);
-        setResizable(true, true);
+        setResizable(true, false);
+        setResizeLimits(800, 600, 800, 600);
         centreWithSize(800, 600);
         setVisible(true);
     }

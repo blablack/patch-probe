@@ -2,6 +2,7 @@
 
 # Folders
 
+.cache
 .vscode/
 build/
 plugins/
