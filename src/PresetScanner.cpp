@@ -131,8 +131,32 @@ juce::String PresetScanner::tryGetPresetName() const
     return {};
 }
 
+void PresetScanner::clearNoteState() const
+{
+    if (!plugin_) return;
+
+    // All Notes Off on all channels — clears the mono/legato note stack so plugins
+    // like Odin2 don't bake an active note into the serialized state.
+    juce::MidiBuffer midi;
+    for (int ch = 1; ch <= 16; ++ch)
+        midi.addEvent(juce::MidiMessage::allNotesOff(ch), 0);
+
+    juce::AudioBuffer<float> audio(plugin_->getTotalNumOutputChannels(), 512);
+    audio.clear();
+    plugin_->processBlock(audio, midi);
+
+    juce::MidiBuffer empty;
+    for (int i = 0; i < 8; ++i)
+    {
+        audio.clear();
+        plugin_->processBlock(audio, empty);
+    }
+}
+
 PresetInfo PresetScanner::captureState(const std::string& name) const
 {
+    clearNoteState();
+
     PresetInfo info;
     info.name = name;
 

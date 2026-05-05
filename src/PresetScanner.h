@@ -32,6 +32,7 @@ class PresetScanner
     juce::AudioPluginInstance* getPlugin() const { return plugin_.get(); }
 
    private:
+    void clearNoteState() const;
     juce::File pluginFile_;
     juce::AudioPluginFormatManager formatManager_;
     juce::PluginDescription description_;
