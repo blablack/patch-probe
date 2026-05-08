@@ -2,8 +2,9 @@
 
 # Folders
 
-.cache
+.cache/
 .vscode/
+.claude/
 build/
 plugins/
 output/

@@ -1,82 +1,53 @@
 # patch-probe
 
-Headless CLI tool that loads a VST3 plugin, enumerates every preset (factory and user), and writes one YAML file per preset containing the full plugin state.
+GUI tool for capturing VST3 plugin preset state as portable YAML snapshots with base64-encoded `raw_state` blobs.
 
-**Why it exists:** Python's [pedalboard](https://github.com/spotify/pedalboard) library cannot change presets at runtime, but it can restore a plugin's state from a saved blob. patch-probe extracts that state for every preset up front so pedalboard can load each one directly:
-
-```python
-synth.raw_state = base64.b64decode(preset["source"]["raw_state"])
-```
+**Why it exists:** VST3 has no universal preset enumeration API that works across all plugins. `setCurrentProgram()` only covers factory programs; `.vstpreset` loading requires the standard IComponent state format, which many plugins (e.g. Odin2 with `.odin` blobs) do not implement. patch-probe sidesteps this by letting the user browse presets interactively through the plugin's own UI and capturing the state on demand.
 
 ## Usage
 
-```
-patch-probe <plugin.vst3> <output-dir> [OPTIONS]
+Launch the app, click **Load Plugin…** to open a `.vst3` file, interact with the plugin UI to select a preset, then click **Save**. Repeat for each preset.
 
-Options:
-  --factory-only    Only scan factory presets (skip user preset dirs)
-  --user-only       Only scan user preset files (skip factory programs)
+The app also accepts CLI arguments to skip the file-chooser dialogs:
+
+```bash
+patch-probe <plugin.vst3> <output-dir>
 ```
 
-Each YAML output file contains a single `source` block:
+Output files land in `~/patch-probe/` by default (configurable via the Output button in the bottom bar).
+
+**Auto-save** (on by default): the app polls the plugin state every 100 ms and saves automatically once the state has been stable for 300 ms. The preset name field is pre-filled by auto-detection and can be edited before the save fires.
+
+## Output format
+
+Each saved file is named `NNN_preset_name.yaml` and contains a single `source` block:
 
 ```yaml
 source:
   type: vst
-  plugin: /path/to/Synth.vst3
+  plugin: "/path/to/Synth.vst3"
   preset: "Big Pad"
-  preset_source: factory
-  program_index: 42
-  raw_state: "TVNTbgAA..."        # base64 getStateInformation() bytes — primary restore
-  parameter_state:                # per-parameter normalized values — fallback
-    Cutoff: 0.72
-    Resonance: 0.3
-```
-
-User presets include a `preset_file` field instead of `program_index`:
-
-```yaml
-source:
-  type: vst
-  plugin: /path/to/Synth.vst3
-  preset: "My Patch"
-  preset_source: user
-  preset_file: /home/user/.vst3/presets/Synth/My Patch.vstpreset
   raw_state: "TVNTbgAA..."
   parameter_state:
-    Cutoff: 0.55
+    Cutoff: 0.720000
+    Resonance: 0.300000
 ```
 
-## Download
-
-Pre-built binaries for Linux, macOS, and Windows are available on the [Releases](../../releases) page.
+| Field | Description |
+|---|---|
+| `raw_state` | Base64-encoded `getStateInformation()` bytes — primary restore mechanism |
+| `parameter_state` | Per-parameter normalized values — fallback if `raw_state` isn't accepted |
 
 ## Building from source
 
-Requires a C++17 compiler, CMake 3.22+, and Ninja. On Linux, also install the JUCE system dependencies (ALSA, X11, FreeType — see the CI workflow for the full list).
+Requires a C++17 compiler, CMake 3.22+, and Ninja. On Linux, also install the JUCE system dependencies (ALSA, X11, FreeType).
 
 ```bash
 git clone --recurse-submodules https://github.com/blablack/patch-probe
 cd patch-probe
-cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++
 ninja -C build
 
 # Binary lands at:
 build/src/patch-probe_artefacts/Release/patch-probe
-```
-
-## Python consumer example
-
-```python
-import yaml, base64, pathlib
-from pedalboard import load_plugin
-
-plugin = load_plugin("/path/to/Synth.vst3")
-preset_dir = pathlib.Path("/path/to/presets")
-
-def load_preset(yaml_path):
-    with open(yaml_path) as f:
-        data = yaml.safe_load(f)
-    src = data["source"]
-    plugin.raw_state = base64.b64decode(src["raw_state"])
 ```
