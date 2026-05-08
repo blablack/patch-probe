@@ -101,8 +101,8 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           mkdir -p dist
-          cp build/src/patch-probe_artefacts/Release/patch-probe dist/
-          ditto -c -k --sequesterRsrc --keepParent dist/patch-probe ${{ matrix.artifact }}
+          cp -r build/src/patch-probe_artefacts/Release/patch-probe.app dist/
+          ditto -c -k --sequesterRsrc --keepParent dist/patch-probe.app ${{ matrix.artifact }}
 
       - name: Package (Windows)
         if: runner.os == 'Windows'
