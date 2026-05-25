@@ -1,6 +1,6 @@
 # Changelog
 
-## [v0.2.0] - 
+## [v0.2.0] - 2026-04-25
 ### Added
 - Complete change of strategy - user manually switching presets
 
