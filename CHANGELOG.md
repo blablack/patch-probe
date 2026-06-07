@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.2.1] - 2026-06-07
+### Fixed
+- Auto-save no longer creates duplicate files when a plugin (e.g. Odin2) reports a
+  new internal state merely from browsing to a different preset category; it now
+  skips the save when the plugin's detected preset name is unchanged
+
 ## [v0.2.0] - 2026-04-25
 ### Added
 - Complete change of strategy - user manually switching presets
