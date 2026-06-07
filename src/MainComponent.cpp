@@ -159,7 +159,7 @@ void MainComponent::showPluginEditor()
 {
     if (!scanner_ || !scanner_->getPlugin()) return;
 
-    editor_.reset(scanner_->getPlugin()->createEditorIfNeeded());
+    editor_.reset(scanner_->getPlugin()->createEditorAndMakeActive());
     if (!editor_) return;
 
     addAndMakeVisible(*editor_);
