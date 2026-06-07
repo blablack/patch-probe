@@ -121,6 +121,7 @@ void MainComponent::loadPluginFile(const juce::File& file)
     stopTimer();
     lastSavedState_.reset();
     pendingState_.reset();
+    lastSavedPresetName_.clear();
     stableTickCount_ = 0;
     hidePluginEditor();
     scanner_.reset();
@@ -235,7 +236,16 @@ void MainComponent::timerCallback()
                 stableTickCount_ = 0;
                 updateNameField();
                 if (autoSaveToggle_.getToggleState())
-                    savePreset();
+                {
+                    // Skip the auto-save when the plugin's own preset name hasn't
+                    // changed. Some plugins (e.g. Odin2) report a fresh internal
+                    // state merely from browsing to a different preset *category*,
+                    // which would otherwise spawn a duplicate file. When no name is
+                    // detectable we fall back to saving on any state change.
+                    const juce::String detected = scanner_->tryGetPresetName();
+                    if (detected.isEmpty() || detected != lastSavedPresetName_)
+                        savePreset();
+                }
             }
         }
         else
@@ -257,6 +267,7 @@ void MainComponent::savePreset()
 
     // Keep detection state in sync so manual saves don't re-trigger auto-save
     scanner_->getPlugin()->getStateInformation(lastSavedState_);
+    lastSavedPresetName_ = scanner_->tryGetPresetName();
     pendingState_.reset();
     stableTickCount_ = 0;
 

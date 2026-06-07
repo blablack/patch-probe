@@ -33,6 +33,7 @@ class MainComponent : public juce::Component, private juce::Timer
     int savedCount_ = 0;
     juce::MemoryBlock lastSavedState_;
     juce::MemoryBlock pendingState_;
+    juce::String lastSavedPresetName_;
     int stableTickCount_ = 0;
 
     // --- Plugin editor ---
