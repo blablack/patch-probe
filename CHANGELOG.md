@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.2.2] - 2026-08-22
+### Added
+- Juce 9.0.1
+
 ## [v0.2.1] - 2026-06-07
 ### Fixed
 - Auto-save no longer creates duplicate files when a plugin (e.g. Odin2) reports a
